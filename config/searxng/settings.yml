@@ -7,3 +7,10 @@ search:
   formats:
     - html
     - json
+
+# Declarado explicitamente: a tag de imagem fixada passou a crashar com
+# `KeyError: 'default_doi_resolver'` (a tag upstream foi mutada para um build
+# bugado). Definir aqui garante a chave independentemente dos defaults da imagem.
+doi_resolvers:
+  oadoi.org: 'https://oadoi.org/'
+default_doi_resolver: 'oadoi.org'

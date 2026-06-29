@@ -152,6 +152,33 @@ INTEGRATION_PRESETS: Dict[str, Dict[str, Any]] = {
             "  GET /api/greader.php/reader/api/0/unread-count?output=json — unread counts"
         ),
     },
+    "sparkyfitness": {
+        "name": "SparkyFitness",
+        "auth_type": "bearer",
+        "description": (
+            "SparkyFitness self-hosted fitness/nutrition tracker (Express API).\n"
+            "Auth: Bearer Personal API Key. Generate one in the SparkyFitness web UI at\n"
+            "Profile -> Personal API Key (or POST /api/identity/user/generate-api-key while\n"
+            "logged in). Base URL is the SparkyFitness host (e.g. http://host.docker.internal:3004).\n"
+            "Tip: SparkyFitness also exposes an MCP endpoint at POST /mcp with the richer\n"
+            "tool set (log_food, log_exercise, sparky_get_report) — register that as an MCP\n"
+            "server for agent use; use this REST integration for direct endpoint calls.\n"
+            "Key endpoints:\n"
+            "  GET /api/ping — health check\n"
+            "  GET /api/version — API version\n"
+            "  POST /api/foods — create a food {\"name\": \"...\", \"calories\": N, ...}\n"
+            "  POST /api/food-entries — log a food entry to the diary\n"
+            "  GET /api/foods/food-entries/{date} — food diary for a date (YYYY-MM-DD)\n"
+            "  GET /api/meals — list meal templates; POST /api/meals — create one\n"
+            "  POST /api/exercises — create/log an exercise\n"
+            "  GET /api/exercise-entries — list exercise entries; POST to log one\n"
+            "  POST /api/measurements — log body measurements (weight, etc.)\n"
+            "  GET /api/health-data — retrieve health data; POST /api/health — log health data\n"
+            "  POST /api/goals — set goals; POST /api/user-goals — user-specific goals\n"
+            "  GET /api/daily-summary — daily summary; GET /api/dashboard — dashboard data\n"
+            "  GET /api/reports — generate reports"
+        ),
+    },
 }
 
 # ---------------------------------------------------------------------------

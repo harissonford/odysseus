@@ -14,7 +14,7 @@ Odysseus is a self-hosted AI workspace (FastAPI backend + vanilla-JS frontend) c
 
 ## Commands
 
-Use the project venv (`./venv/bin/python`) so commands don't fall back to system Python.
+If a project venv exists, prefer it (`./venv/bin/python`) so commands don't fall back to system Python. There is no committed venv — create one (`python -m venv venv && ./venv/bin/pip install -r requirements.txt`) before running locally, or use Docker (below) which needs no local venv.
 
 ```bash
 # Run the app (manual dev)
@@ -31,13 +31,16 @@ python -m pytest tests/test_<name>.py::test_x # single test
 python -m pytest -m area_security             # taxonomy slice (areas: security, routes, services, cli, js, helpers, unit, uncategorized)
 python -m pytest -m "area_services and sub_cookbook"
 ./venv/bin/python tests/run_focus.py --area services --sub-area cookbook   # focused runner (validates names, --last-failed, --fast, --durations)
+python -m pytest -m "not slow"                # fast lane — skips tests tagged @pytest.mark.slow (run_focus --fast does the same)
 
 # Syntax checks (mirror CI — fast, no deps needed)
 python -m compileall -q app.py core routes src services scripts tests
 node --check static/app.js                    # or static/js/<file>.js
 ```
 
-CI (`.github/workflows/ci.yml`) runs three jobs: `compileall` (Python syntax), `node --check` over `static/app.js` + `static/js/**/*.js`, and pytest. The pytest job is **`continue-on-error` (informational)** — the suite has known flaky/environment-dependent failures, so a red pytest check does not block merge, but don't add to the flakiness.
+Test environment: `tests/conftest.py` defaults `DATABASE_URL` to `sqlite:///:memory:` (so the suite never writes `data/app.db`) and stubs heavy optional deps with `MagicMock` when they aren't installed — tests must not assume a real DB file or all deps present. The `area_*`/`sub_*` marker taxonomy is documented in `tests/README.md` and `tests/TESTING_STANDARD.md`; mark a test `slow` only with duration evidence (`run_focus.py --durations`).
+
+CI (`.github/workflows/ci.yml`) runs three jobs: `compileall` (Python syntax), `node --check` over `static/app.js` + `static/js/**/*.js`, and pytest (skipped on docs-only PRs; CI creates `./data` first). The pytest job is **`continue-on-error` (informational)** — the suite has known flaky/environment-dependent failures, so a red pytest check does not block merge, but don't add to the flakiness.
 
 Separately, several **security workflows run on every PR and are blocking** (unlike pytest): `secret-scan`, `dependency-review`, `workflow-security`, and `container-trivy` (skips doc-only changes). GitHub CodeQL also scans pushes — much of the recent commit history is clearing its path-traversal/parser alerts, so treat sanitizing user-controlled paths and parser inputs as a first-class review concern, not an afterthought.
 
@@ -53,6 +56,9 @@ Separately, several **security workflows run on every PR and are blocking** (unl
 - `services/` — service-layer subsystems, each a package (`research/`, `search/`, `shell/`, `tts/`, `stt/`, `memory/`, `hwfit/`, `docs/`, `faces/`, `youtube/`).
 - `src/` — core business logic and managers (agent loop, LLM core, RAG, embeddings, email, calendar sync, cookbook serving, etc.).
 - `core/` — framework plumbing: `database.py` (SQLAlchemy models + `SessionLocal`), `auth.py`, `middleware.py`, `session_manager.py`, `exceptions.py`. `core/constants.py` only **re-exports** `src/constants.py` for backward compatibility.
+- `mcp_servers/` — built-in MCP servers exposed to the agent (`email_server.py`, `image_gen_server.py`, `memory_server.py`, `rag_server.py`); `integrations/` (`claude/`, `codex/`) and `companion/` add external coding-agent and device-pairing surfaces.
+- `scripts/` — standalone maintenance/migration/diagnostic scripts (run directly, not imported); not part of the request path.
+- `docs/` — canonical setup/reference docs (`setup.md` for native/GPU/Windows/macOS/HTTPS installs, `security-ci.md` for the blocking-workflow rationale); `specs/architecture-runtime-inventory.md` is the detailed architecture inventory.
 
 ### Agent loop & tools
 `src/agent_loop.py` wraps `src/llm_core.py::stream_llm()` with a multi-round tool-execution loop. The LLM invokes tools by emitting **fenced code blocks** that are parsed/executed via `src/agent_tools/` (`filesystem_tools`, `subprocess_tools`, `web_tools`, `document_tools`, `session_tools`, `model_interaction_tools`, `bg_job_tools`). Tool gating is enforced per-owner (`src/tool_security.py`, `src/tool_policy.py`). Built-in and external **MCP** servers (`mcp_servers/`, `src/mcp_manager.py`) extend the tool set.
@@ -61,7 +67,7 @@ Separately, several **security workflows run on every PR and are blocking** (unl
 Two stores: JSON files (sessions, memory, presets, settings, auth, …) and a SQLite DB at `DATA_DIR/app.db` (`core/database.py` declares all SQLAlchemy models — `Session`, `ChatMessage`, `Document`, `Memory`, `EmailAccount`, `ScheduledTask`, `CalendarEvent`, etc.). Some columns are transparently encrypted via the `EncryptedText` type. There are also dedicated SQLite DBs for email cache and scheduled emails.
 
 ### Frontend
-Vanilla ES modules, no build step. `static/index.html` + `static/app.js` + `static/js/<feature>.js` (some features are subdirectories). `static/lib/` is vendored and excluded from `node --check`. Dark theme is default; styling goes through CSS variables in `static/style.css`.
+Vanilla ES modules, no build step. `static/index.html` + `static/app.js` + `static/js/<feature>.js` (some features are subdirectories). `static/lib/` is vendored and excluded from `node --check`. Dark theme is default; styling goes through CSS variables in `static/style.css`. `package.json` defines no scripts — it exists only for a test devDependency; there is nothing to `npm run`.
 
 ## Project conventions (enforced in review)
 
